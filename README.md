@@ -1,3 +1,3 @@
-### THESE ARE TEMPLATES. DO NOT COPY THEM UNCHANGED. CUSTOMIZE THEM FOR YOUR AGENT.
+### THESE ARE TEMPLATES. YOU SHOULD NOT DIRECTLY COPY AND USE THEM. SEND THE LINK TO YOUR AGENT AND CUSTOMIZE THESE FOR YOURSELF
 
-This repository contains reusable Catty skills and complete scheduled-job folders. Give your agent the relevant folder and have it adapt the prompt and schedule to its own context, tools, permissions, and notification path. See the Catty Golden Path document for more details.
+This repository contains templates that you can give to your agent for skills that work well for the Golden Path. See the Catty Golden Path document for more details.
