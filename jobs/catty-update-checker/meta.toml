@@ -1,0 +1,17 @@
+enabled = false
+session = "separate"
+priority = "low"
+
+[schedule]
+type = "interval"
+hours = 24
+
+[[checks]]
+id = "catty-update"
+run = "python3 scripts/check_updates.py"
+timeoutSeconds = 780
+
+[[context]]
+id = "catty-update-details"
+run = "python3 scripts/update_state.py context"
+format = "json"
