@@ -1,0 +1,8 @@
+# Copy this job folder into jobs/<job-id>, customize the prompt, and choose the schedule that suits the agent.
+enabled = true
+session = "main"
+priority = "low"
+
+[schedule]
+type = "interval"
+hours = 2
