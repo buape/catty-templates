@@ -1,0 +1,17 @@
+enabled = false
+session = "separate"
+priority = "low"
+
+[schedule]
+type = "interval"
+minutes = 5
+
+[[checks]]
+id = "github-notifications"
+run = "python3 scripts/check_notifications.py"
+
+[[context]]
+id = "github-notifications-context"
+run = "python3 scripts/context_notifications.py"
+format = "markdown"
+timeoutSeconds = 90

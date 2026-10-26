@@ -1,0 +1,18 @@
+enabled = false
+session = "separate"
+priority = "low"
+
+[schedule]
+type = "interval"
+minutes = 5
+
+[[checks]]
+id = "orbit-notifications"
+run = "python3 scripts/check_notifications.py"
+timeoutSeconds = 120
+
+[[context]]
+id = "orbit-notifications-context"
+run = "python3 scripts/context_notifications.py"
+format = "markdown"
+timeoutSeconds = 90
