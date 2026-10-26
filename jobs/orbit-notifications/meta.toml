@@ -1,0 +1,7 @@
+enabled = false
+session = "separate"
+priority = "low"
+
+[schedule]
+type = "interval"
+minutes = 5
