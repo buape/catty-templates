@@ -1,6 +1,6 @@
 ---
 name: buapedb
-description: Fetch short-lived production database credentials for Buape's prod databases (orbit, kiai, ...) with the buapedb CLI, and paste them into a DB client like TablePlus. Authenticates through Buape Auth SSO, so no long-lived DB credentials are ever stored. Use when the user asks to access, inspect, query, seed, or debug a Buape prod/staging database, or wants DB credentials.
+description: Fetch short-lived production database credentials for Buape's prod databases (orbit, kiai, ...) with the buapedb CLI, renew or revoke them, and paste them into the dev's database client. Authenticates through Buape Auth SSO, so no long-lived DB credentials are ever stored. Use when the user asks to access, inspect, query, seed, or debug a Buape prod/staging database, or wants DB credentials. Authenticates through Buape Auth SSO, so no long-lived DB credentials are ever stored. Use when the user asks to access, inspect, query, seed, or debug a Buape prod/staging database, or wants DB credentials.
 ---
 
 # buapedb — short-lived DB credentials at Buape
@@ -30,7 +30,13 @@ it moves).
 buapedb kiai          # read-only creds (sensible default)
 buapedb orbit --write # read-write, only if Buape Auth groups allow it
 buapedb list          # live inventory: every advertised mount and role
+buapedb --renew <id>  # extend one of your credentials (+1h)
+buapedb --end         # revoke every credential minted from this machine
 ```
+
+`--renew`/`--end` are per-machine: lease ids are tracked in `~/.buapedb/leases`
+when credentials are minted here. `--end` drops those DB users immediately
+(anything still connected through them dies).
 
 Flow: if no token is held, a browser window opens for Buape Auth login; then
 a username prints and the password lands on the clipboard. Paste both into
