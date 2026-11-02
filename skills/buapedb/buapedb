@@ -1,0 +1,111 @@
+#!/bin/sh
+# buapedb — fetch short-lived DB credentials from OpenBao (buape).
+#
+# Usage:
+#   buapedb <name>             # read-only, e.g. buapedb orbit, buapedb orbit-ro
+#   buapedb <name> --write     # read-write access
+#   buapedb list               # show available database mounts and roles
+#
+# Behavior: logs in via Buape Auth SSO in the browser if needed, mints a
+# short-lived Postgres user for the requested role, prints the username and
+# puts the password in the clipboard (pbcopy) for pasting into TablePlus.
+# The credential is unique per request and dies with its lease.
+#
+# Nothing is hardcoded: mounts and roles are read from OpenBao directly, so
+# new databases/roles appear automatically.
+#
+# Requires: bao (or vault), jq. macOS: pbcopy.
+
+set -eu
+
+BAO_ADDR="${BAO_ADDR:-https://bao.b1.buape.com}"
+export BAO_ADDR
+
+# find the CLI
+if command -v bao >/dev/null 2>&1; then CLI=bao
+elif command -v vault >/dev/null 2>&1; then CLI=vault
+else echo "need the openbao/vault CLI: brew install openbao" >&2; exit 1; fi
+
+_discover() {
+    "$CLI" secrets list -detailed -format=json 2>/dev/null \
+        | jq -r 'to_entries[] | select(.value.type == "database") | .key' \
+        | sed 's|/$||'
+}
+_mounts() {
+    _discover
+}
+
+_roles() { # <mount>
+    "$CLI" list -format=json "$1/roles" 2>/dev/null | jq -r '.[]'
+}
+
+if [ "${1:-}" = "list" ]; then
+    mounts="$(_mounts)"
+    for mount in $mounts; do
+        printf '%s: %s\n' "$mount" "$(_roles "$mount" | tr '\n' ' ')"
+    done
+    exit 0
+fi
+
+[ $# -ge 1 ] || { echo "usage: buapedb <name> [--write] | list" >&2; exit 1; }
+request="$1"
+level="ro"
+case "${2:-}" in
+    "") ;;
+    -ro|--read) ;;
+    -rw|--write) level="rw" ;;
+    *) echo "unknown flag '${2}' (use --write for read-write access)" >&2; exit 1 ;;
+esac
+
+# resolve <request> (plus level) to exactly one <mount>/<role>
+# among everything OpenBao currently advertises
+resolve() {
+    target="$1"
+    for mount in $(_mounts); do
+        for role in $(_roles "$mount"); do
+            [ "$role" = "$target" ] && { echo "$mount $role"; return 0; }
+        done
+    done
+    return 1
+}
+
+target="$request"
+case "$target" in
+    *-ro) [ "$level" = "rw" ] && target="${target%-ro}-rw" ;;
+    *-rw) [ "$level" = "ro" ] && target="${target%-rw}-ro" ;;
+esac
+
+# try the exact (possibly level-adjusted) role first, then the
+# bare-name-plus-suffix forms like "orbit" → "orbit-ro"
+if ! result="$(resolve "$target")"; then
+    if ! result="$(resolve "${request}-${level}")"; then
+        echo "no database credentials match '$request' (try 'buapedb list')" >&2
+        exit 1
+    fi
+fi
+mount="${result%% *}"
+role="${result#* }"
+
+# login only when we don't hold a token yet; browser handles Authentik SSO
+if ! "$CLI" token lookup >/dev/null 2>&1; then
+    echo "logging in via Authentik…"
+    "$CLI" login -method=oidc >/dev/null
+fi
+
+resp="$("$CLI" read -format=json "$mount/creds/$role")" || {
+    echo "failed to read $mount/creds/$role — is your Authentik group $role?" >&2
+    exit 1
+}
+
+user="$(printf '%s' "$resp" | jq -r '.data.username')"
+pass="$(printf '%s' "$resp" | jq -r '.data.password')"
+
+if command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$pass" | pbcopy
+    echo "  username: $user"
+    echo "  password: copied to clipboard (paste into TablePlus)"
+else
+    echo "paste into the password field:"
+    printf '  password: %s\n' "$pass"
+fi
+echo "  expires:  with the lease in OpenBao (unique per request)"
