@@ -1,59 +1,44 @@
 ---
 name: buapedb
-description: Fetch short-lived production database credentials for Buape's prod databases (orbit, kiai, ...) with the buapedb CLI, renew or revoke them, and paste them into the dev's database client. Authenticates through Buape Auth SSO, so no long-lived DB credentials are ever stored. Use when the user asks to access, inspect, query, seed, or debug a Buape prod/staging database, or wants DB credentials. Authenticates through Buape Auth SSO, so no long-lived DB credentials are ever stored. Use when the user asks to access, inspect, query, seed, or debug a Buape prod/staging database, or wants DB credentials.
+description: "Access Buape databases with the published buapedb CLI. Use for Buape database access, temporary credentials, connection URLs, renewal, or ending credentials. Buape work only."
 ---
 
-# buapedb — short-lived DB credentials at Buape
-
-Buape's prod databases do not accept shared passwords. `buapedb` mints a
-unique, short-lived Postgres user for the requested role, gated by Buape Auth
-(SSO) group membership. The credential dies with its lease, so nothing
-long-lived ends up in a DB client.
-
-Databases are discovered from OpenBao at runtime — new databases appear
-without updating this skill. `buapedb list` shows everything currently
-available (orbit and kiai at the time of writing).
+# buapedb
 
 ## Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/buape/catty-templates/main/skills/buapedb/buapedb | sudo tee /usr/local/bin/buapedb >/dev/null && sudo chmod +x /usr/local/bin/buapedb
-brew install openbao jq
+```sh
+brew install buape/tap/buapedb
 ```
 
-Cluster endpoint is `https://bao.b1.buape.com` (override with `BAO_ADDR` if
-it moves).
+Use the published binary. Do not install extra toolchains or CLI helpers, or
+invoke a bundled shell script instead.
 
 ## Usage
 
-```bash
-buapedb kiai          # read-only creds (sensible default)
-buapedb orbit --write # read-write, only if Buape Auth groups allow it
-buapedb list          # live inventory: every advertised mount and role
-buapedb --renew <id>  # extend one of your credentials (+1h)
-buapedb --end         # revoke every credential minted from this machine
+```sh
+buapedb list
+buapedb kiai
+buapedb orbit --write
+buapedb kiai --renew <id>
+buapedb orbit --end
 ```
 
-`--renew`/`--end` are per-machine: lease ids are tracked in `~/.buapedb/leases`
-when credentials are minted here. `--end` drops those DB users immediately
-(anything still connected through them dies).
-
-Flow: if no token is held, a browser window opens for Buape Auth login; then
-a username prints and the password lands on the clipboard. Paste both into
-the DB client (TablePlus etc.). It is an ordinary username/password
-connection — the only speciality is that expiry deletes the user
-automatically.
-
-## Operating rules
-
-- Saved DB-client connections are expected to break: the credential expired.
-  Re-run `buapedb` and paste the fresh password; that is not an outage.
-- Never persist the password anywhere other than the client's own connection
-  cache — it is revoked with the lease regardless.
-- Every credential request is attributed to your identity; treat prod access
-  accordingly.
-- "no database credentials match" means a missing Buape Auth group or an
-  unknown role — `buapedb list` settles which. Escalate access requests
-  through the infra channel in Buape Auth rather than working around them.
-- Do not attempt to bypass expiration by reusing old credentials or sharing
-  fetched ones; each mint is per-identity and audited.
+- Read-only unless `--write` is requested. Discover available databases with
+  `buapedb list`; do not hardcode an inventory.
+- The full connection URL goes to the clipboard. Tell the user to **paste in
+  your database tool**. Password output stays `***` when copying succeeds.
+- If clipboard copying fails, the CLI prints the full password and URL. Treat
+  both as secrets; do not copy them into chat, tickets, commits, or logs.
+- `--json` deliberately outputs credentials for scripts. Use only when needed;
+  consume its output privately, not as progress or verification text.
+- Let the user complete sign-in. Keep status generic, such as “Signing in…”.
+  Do not narrate backend implementation, policies, or sign-in prompt steps.
+- Never use an operator/root token to stand in for a user's login. In particular,
+  do not set `BAO_TOKEN` from an operator credential when fetching user access.
+- Use the displayed expiry. An expired saved connection needs fresh credentials;
+  do not promise that renewal will revive an expired credential.
+- Scope `--end` to the requested database. It ends credentials tracked on this
+  machine for that database, not every server-side credential.
+- On denied access or failed renewal/revocation, report the error; do not claim
+  success, silently drop failures, or bypass access controls.
