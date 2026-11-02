@@ -8,11 +8,14 @@ description: "Access Buape databases with the published buapedb CLI. Use for Bua
 ## Install
 
 ```sh
+brew update
 brew install buape/tap/buapedb
+buapedb --version
 ```
 
-Use the published binary. Do not install extra toolchains or CLI helpers, or
-invoke a bundled shell script instead.
+Use the Homebrew-managed binary on PATH. Keep only `SKILL.md` in this skill
+directory; do not bundle or copy an executable here. No additional CLI helpers
+or toolchains are required. Update with `brew upgrade buape/tap/buapedb`.
 
 ## Usage
 
